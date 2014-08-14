@@ -17,7 +17,7 @@ interface XMLHttpRequest {
 };
 ```
 
-XHR reads data as `ArrayBuffer`s from the `ReadableStream` using its public methods, and sends them to the network without waiting for whole response body to be ready using `Transfer-Encoding: chunked`. When the `ReadableStream` is closed, terminates the request body.
+XHR reads data as `ArrayBuffer`s from the `ReadableStream` using its public methods, and sends them to the network using `Transfer-Encoding: chunked` without waiting for whole response body to be ready. When the `ReadableStream` is closed, terminates the request body.
 
 ```
 var requestBodyStream = ...;
