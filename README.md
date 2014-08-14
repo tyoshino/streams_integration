@@ -7,7 +7,7 @@ This document discusses and drafts integration of the [Streams API](https://gith
 
 ### Request body streaming
 
-#### Plan A: Pass a stream representing request body to `send()` method
+#### Plan A: Pass a `ReadableStream` representing the request body to `send()` method
 
 ```
 interface XMLHttpRequest {
@@ -17,14 +17,31 @@ interface XMLHttpRequest {
 };
 ```
 
-XHR reads data from the given `BaseReadableStream` using its public methods and sends data as it becomes available. When the stream is closed, terminates the request body.
+XHR reads data as `ArrayBuffer`s from the `ReadableStream` using its public methods, and sends them to the network without waiting for whole response body to be ready using `Transfer-Encoding: chunked`. When the `ReadableStream` is closed, terminates the request body.
 
 ```
 var requestBodyStream = ...;
 var xhr = new XMLHttpRequest();
 xhr.open('POST', 'http://example.com/upload');
 xhr.send(requestBodyStream);
-...
+```
+
+#### Plan B: Add a new method to the XHR which returns a `WritableStream` to which we write the request body
+
+```
+interface XMLHttpRequest {
+  ...
+  WritableStream streamingSend();
+  ...
+};
+```
+
+XHR, as an underlying data sink, consumes `ArrayBuffer`s written to the `WritableStream` it returned. When the `WritableStream` is closed, terminates the request body.
+
+```
+var xhr = new XMLHttpRequest();
+xhr.open('POST', 'http://example.com/upload');
+var requestBodyStream = xhr.streamingSend();
 ```
 
 When new data is ready:
@@ -33,17 +50,11 @@ When new data is ready:
 requestBodyStream.write(arrayBuffer);
 ```
 
-#### Plan B: Add a method to XHR which returns a stream for writing request body data
+and close when done:
 
 ```
-interface XMLHttpRequest {
-  ...
-  BaseWritableStream streamingSend();
-  ...
-};
+requestBodyStream.close();
 ```
-
-XHR consumes data written to the `BaseWritableStream` it returned. When the stream is closed, terminates the request body.
 
 ### Response body streaming
 
