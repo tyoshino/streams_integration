@@ -3,7 +3,7 @@ Streams API integration
 
 Author: Takeshi Yoshino of Chromium Project
 
-This document discusses and drafts integration of the [Streams API](https://github.com/whatwg/streams) with [XMLHttpRequest](http://xhr.spec.whatwg.org/).
+This document discusses integration of the [Streams API](https://github.com/whatwg/streams) with [XMLHttpRequest](http://xhr.spec.whatwg.org/).
 
 ### Request body streaming
 
