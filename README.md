@@ -5,7 +5,7 @@ Author: Takeshi Yoshino of Chromium Project
 
 This document discusses integration of the [Streams API](https://github.com/whatwg/streams) with [XMLHttpRequest](http://xhr.spec.whatwg.org/).
 
-### Request body streaming
+### XHR request body streaming
 
 #### Plan A: Pass a `ReadableStream` representing the request body to `send()` method
 
@@ -56,7 +56,7 @@ and close when done:
 requestBodyStream.close();
 ```
 
-### Response body streaming
+### XHR response body streaming
 
 Add a new `XMLHttpRequestResponseType` value, `"stream"`. When the `responseType` property is set to `"stream"`, the `response` property returns a `ReadableStream` from which received response body data is read as `ArrayBuffer`s, and once all data is read, it'll be closed.
 
