@@ -12,7 +12,7 @@ This document discusses and drafts integration of the [Streams API](https://gith
 ```
 interface XMLHttpRequest {
   ...
-  void send(optional (ArrayBufferView or ... or BaseReadableStream)? data = null);
+  void send(optional (ArrayBufferView or ... or ReadableStream)? data = null);
   ...
 };
 ```
