@@ -58,6 +58,14 @@ requestBodyStream.close();
 
 ### XHR response body streaming
 
+#### Plan A: Add a new method to XHR using which we pass a `WritableStream` to which XHR saves the response body
+
+```
+xhr.writeResponseToStream(writableStream);
+```
+
+#### Plan B: Add a new `responseType` value and get a `ReadableStream` from which we read the response body from the `response` property
+
 Add a new `XMLHttpRequestResponseType` value, `"stream"`. When the `responseType` property is set to `"stream"`, the `response` property returns a `ReadableStream` from which received response body data is read as `ArrayBuffer`s, and once all data is read, it'll be closed.
 
 ```
