@@ -73,4 +73,10 @@ responseBodyStream.wait().then(
 );
 ```
 
+Question: When the response should become non-null?
+
+* HEADERS_RECEIVED
+* LOADING or DONE
+    * Note: DONE is include because we don't see LOADING when the response is empty.
+
 This idea was in the XHR spec but has been removed for now https://github.com/whatwg/xhr/commit/ecb48a1abb1d7249f6701c12d9134d91728a8edb
