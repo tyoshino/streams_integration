@@ -2,6 +2,7 @@ Streams API integration
 =======================
 
 Author: Takeshi Yoshino of Chromium Project
+Acknowledgement
 
 This document discusses and drafts integration of the [Streams API](https://github.com/whatwg/streams) with [XMLHttpRequest](http://xhr.spec.whatwg.org/).
 
@@ -58,14 +59,18 @@ requestBodyStream.close();
 
 ### Response body streaming
 
-Add a new `XMLHttpRequestResponseType` value, `"stream"`. When `responseType` is set to `"stream"`, `response` returns a BaseReadableStream instance from which received response body data can be read and once all data is read, it'll be closed.
+Add a new `XMLHttpRequestResponseType` value, `"stream"`. When the `responseType` property is set to `"stream"`, the `response` property returns a `ReadableStream` from which received response body data is read as `ArrayBuffer`s, and once all data is read, it'll be closed.
 
 ```
 xhr.responseType = "stream";
 ...
+var responseBodyStream;
 xhr.onreadystatechange = function () {
-  if (xhr.readyState == xhr.HEADERS_RECEIVED) {
+  if (responseBodyStream === undefined &&
+      (xhr.readyState == xhr.LOADING ||
+       xhr.readyState == xhr.DONE)) {
     responseBodyStream = xhr.response;
+    readAndProcess(responseBodyStream);
   }
   ...
 };
@@ -74,14 +79,23 @@ xhr.onreadystatechange = function () {
 Wait by `wait()` and then `read()`:
 
 ```
-responseBodyStream.wait().then(
-  function () {
-    if (responseBodyStream.state === "readable") {
-      process(responseBodyStream.read());
+function readAndProcess(stream) {
+  stream.wait().then(
+    function () {
+      for (;;) {
+        if (stream.state === "readable") {
+          process(responseBodyStream.read());
+          return;
+        }
+        if (stream.state === "waiting") {
+          stream.wait().then(readAndProcess, readAndProcess);
+          return;
+        }
+        ...
+      }
     }
-    ...
-  }
-);
+  );
+}
 ```
 
 Question: When the response should become non-null?
@@ -91,3 +105,7 @@ Question: When the response should become non-null?
     * Note: DONE is include because we don't see LOADING when the response is empty.
 
 This idea was in the XHR spec but has been removed for now https://github.com/whatwg/xhr/commit/ecb48a1abb1d7249f6701c12d9134d91728a8edb
+
+### Acknowledgements
+
+The author would like to thank Yutaka Hirano for his contributions to this document.
