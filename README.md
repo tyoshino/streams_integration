@@ -111,6 +111,10 @@ Question: When the response should become non-null?
 * LOADING or DONE
     * Note: DONE is include because we don't see LOADING when the response is empty.
 
+Question: What we should do on the XHR when the ReadableStream is cancel()-ed?
+
+* call abort() on the XHR?
+
 ### Acknowledgements
 
 The author would like to thank Yutaka Hirano for his contributions to this document.
