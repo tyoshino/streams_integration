@@ -5,6 +5,8 @@ Author: Takeshi Yoshino of Chromium Project
 
 This document discusses integration of the [Streams API](https://github.com/whatwg/streams) with [XMLHttpRequest](http://xhr.spec.whatwg.org/).
 
+See also https://github.com/slightlyoff/ServiceWorker/issues/413 where how streams should be passed to/from the Fetch API.
+
 ### XHR request body streaming
 
 #### Plan A: Pass a `ReadableStream` representing the request body to `send()` method
