@@ -58,6 +58,22 @@ and close when done:
 requestBodyStream.close();
 ```
 
+#### Plan C: Pass a function to `send()` method via which XHR reveals a `WritableStream` to which we write the request body
+
+This idea was suggested at https://github.com/slightlyoff/ServiceWorker/issues/413 for the Fetch API.
+
+```
+interface XMLHttpRequest {
+  ...
+  void send(optional (ArrayBufferView or ... or Function)? data = null);
+  ...
+};
+```
+
+XHR behaves as an underlying sink for the `WritableStream`. XHR sends `ArrayBuffer`s written to it to the network using `Transfer-Encoding: chunked`. When the `WritableStream` is closed, terminates the request body.
+
+
+
 ### XHR response body streaming
 
 #### Plan A: Add a new method to XHR using which we pass a `WritableStream` to which XHR saves the response body
