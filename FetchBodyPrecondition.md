@@ -40,7 +40,17 @@ Note
 
 ## (A)'
 
-Same as (A) but the following operations make the body `"closed"`.
+Same as (A) but the following operations set `body passed flag`, confiscate the underlying source and queue from `res.body` and close it.
+
+- `fetch(req)`
+- `new Request(req)`
+- `cache.put(req, res)`
+- `e.respondWith(res)`
+- `cache.put(req, res)`
+
+## (A)''
+
+Same as (A) but the following operations set `body passed flag`, acquire the lock, release it when done (the body becomes `"closed"` when done).
 
 - `fetch(req)`
 - `new Request(req)`
