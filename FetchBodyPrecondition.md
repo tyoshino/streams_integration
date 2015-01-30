@@ -38,6 +38,16 @@ Note
 - a `Response`/`Request` with `body passed flag` is unset but `.body` `"errored"` is considered to be one whose headers were received successfully but body wasn't
 - a `Response`/`Request` with `body passed flag` set is considered to be invalid
 
+## (A)'
+
+Same as (A) but the following operations make the body `"closed"`.
+
+- `fetch(req)`
+- `new Request(req)`
+- `cache.put(req, res)`
+- `e.respondWith(res)`
+- `cache.put(req, res)`
+
 ## (B) Permanent lock
 
 Request
