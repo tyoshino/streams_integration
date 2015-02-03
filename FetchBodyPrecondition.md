@@ -2,7 +2,7 @@ Copy of https://github.com/slightlyoff/ServiceWorker/issues/452#issuecomment-719
 
 In the following plans, `fetch()` is omitted since `fetch(req)` runs `new Request(req)`, and therefore it's sufficient to discuss only `new Request(req)`.
 
-## (A) Lock + `body passed flag`
+## (A)'' Lock + `body passed flag`
 
 Request
 
@@ -15,7 +15,7 @@ Request
     - `req.json()`
     - `req.text()`
 - `req.clone()` fail when `req.bodyUsed` is set.
-- The following operations fail when `req.bodyUsed` is set. Otherwise, they set `req`'s `body passed flag`, confiscate the underlying source and queue from `req.body` and error it.
+- The following operations fail when `req.bodyUsed` is set. Otherwise, they set `req`'s `body passed flag`, acquire the lock of `req.body`, release it when done (the body becomes `"closed"` when done).
     - `new Request(req)`
     - `cache.put(req, res)`
 
@@ -30,7 +30,7 @@ Response
     - `res.json()`
     - `res.text()`
 - `res.clone()` fail when `res.bodyUsed` is set.
-- The following operations fail when `res.bodyUsed` is set. Otherwise, they set `res`'s `body passed flag`, confiscate the underlying source and queue from `res.body` and error it.
+- The following operations fail when `res.bodyUsed` is set. Otherwise, they set `res`'s `body passed flag`, acquire the lock of `res.body`, release it when done (the body becomes `"closed"` when done).
     - `e.respondWith(res)`
     - `cache.put(req, res)`
 
@@ -39,18 +39,18 @@ Note
 - a `Response`/`Request` with `body passed flag` is unset but `.body` `"errored"` is considered to be one whose headers were received successfully but body wasn't
 - a `Response`/`Request` with `body passed flag` set is considered to be invalid
 
-## (A)'
+## (A)
 
-Same as (A) but the following operations set `body passed flag`, confiscate the underlying source and queue from `res.body` and close it.
+Same as (A) but the following operations set `body passed flag`, confiscate the underlying source and queue from `res.body` and error it.
 
 - `new Request(req)`
 - `cache.put(req, res)`
 - `e.respondWith(res)`
 - `cache.put(req, res)`
 
-## (A)''
+## (A)'
 
-Same as (A) but the following operations set `body passed flag`, acquire the lock, release it when done (the body becomes `"closed"` when done).
+Same as (A) but the following operations set `body passed flag`, confiscate the underlying source and queue from `res.body` and close it.
 
 - `new Request(req)`
 - `cache.put(req, res)`
