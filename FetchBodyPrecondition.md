@@ -1,5 +1,7 @@
 Copy of https://github.com/slightlyoff/ServiceWorker/issues/452#issuecomment-71971020
 
+In the following plans, `fetch()` is omitted since `fetch(req)` runs `new Request(req)`, and therefore it's sufficient to discuss only `new Request(req)`.
+
 ## (A) Lock + `body passed flag`
 
 Request
@@ -14,7 +16,6 @@ Request
     - `req.text()`
 - `req.clone()` fail when `req.bodyUsed` is set.
 - The following operations fail when `req.bodyUsed` is set. Otherwise, they set `req`'s `body passed flag`, confiscate the underlying source and queue from `req.body` and error it.
-    - `fetch(req)`
     - `new Request(req)`
     - `cache.put(req, res)`
 
@@ -42,7 +43,6 @@ Note
 
 Same as (A) but the following operations set `body passed flag`, confiscate the underlying source and queue from `res.body` and close it.
 
-- `fetch(req)`
 - `new Request(req)`
 - `cache.put(req, res)`
 - `e.respondWith(res)`
@@ -52,7 +52,6 @@ Same as (A) but the following operations set `body passed flag`, confiscate the 
 
 Same as (A) but the following operations set `body passed flag`, acquire the lock, release it when done (the body becomes `"closed"` when done).
 
-- `fetch(req)`
 - `new Request(req)`
 - `cache.put(req, res)`
 - `e.respondWith(res)`
@@ -71,7 +70,6 @@ Request
     - `req.text()`
 - `req.clone()` fails when `req.body` is locked.
 - The following operations fail when `req.body` is locked. Otherwise, they acquire the lock of `req.body` and never release it.
-    - `fetch(req)`
     - `new Request(req)`
     - `cache.put(req, res)`
 
@@ -104,7 +102,6 @@ Request
     - `req.formData()`
     - `req.json()`
     - `req.text()`
-    - `fetch(req)`
     - `new Request(req)`
     - `cache.put(req, res)`
 - `req.clone()` fails when `req.body` is locked.
