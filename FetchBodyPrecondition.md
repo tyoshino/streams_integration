@@ -15,7 +15,7 @@ Request
     - `req.json()`
     - `req.text()`
 - `req.clone()` fail when `req.bodyUsed` is set.
-- The following operations fail when `req.bodyUsed` is set. Otherwise, they set `req`'s `body passed flag`, acquire the lock of `req.body`, release it when done (the body becomes `"closed"` when done).
+- The following operations fail when `req.bodyUsed` is set. Otherwise, they set `req`'s `body passed flag`, acquire the lock of `req.body` and release it when done (`req.body` becomes `"closed"` when done).
     - `new Request(req)`
     - `cache.put(req, res)`
 
@@ -30,7 +30,7 @@ Response
     - `res.json()`
     - `res.text()`
 - `res.clone()` fail when `res.bodyUsed` is set.
-- The following operations fail when `res.bodyUsed` is set. Otherwise, they set `res`'s `body passed flag`, acquire the lock of `res.body`, release it when done (the body becomes `"closed"` when done).
+- The following operations fail when `res.bodyUsed` is set. Otherwise, they set `res`'s `body passed flag`, acquire the lock of `res.body` and release it when done (`res.body` becomes `"closed"` when done).
     - `e.respondWith(res)`
     - `cache.put(req, res)`
 
