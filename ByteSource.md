@@ -30,7 +30,7 @@ class ByteSource {
   get pullable()
   // Returns the associated ReadableStream to which pulled bytes will be enqueued.
   get stream()
-  // Create an auto puller and have it control this ByteSource. After calling
+  // Creates an auto puller and have it control this ByteSource. After calling
   // this method, any call on this ByteSource except for .stream will throw.
   startAutoPull()
   // Pulls bytes into the given Uint8Array, and once filled (not necessarily whole
@@ -47,7 +47,7 @@ class ByteSource {
   //   on completion.
   pull(abv)
   // Called when .pullable is true:
-  //   Retrusn a promise that fulfills when .bytesPullable value changes from
+  //   Retruns a promise that fulfills when .bytesPullable value changes from
   //   one at the watch() call.
   // Called when .pullable is false:
   //   Returns a promise that fulfills when .pullable becomes true.
