@@ -205,6 +205,7 @@ function processFileUsingBufferPool(file, processor, numBuffers, bufferSize) {
         }
 
         Promise.race(promisesToRace).then(loop, loop);
+        return;
       }
     }
 
