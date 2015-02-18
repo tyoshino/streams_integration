@@ -1,6 +1,6 @@
 # ByteSource
 
-```
+```es6
 class ReadableStream {
   ...
   // Controls how much data to pull. For queue-backed ones, this corresponds to
