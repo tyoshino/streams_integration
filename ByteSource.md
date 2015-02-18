@@ -65,50 +65,66 @@ In response to [Domenic's suggestion](https://github.com/whatwg/streams/issues/2
 function readAsSingleArrayBuffer(file) {
   return new Promise((resolve, reject) => {
     const fileSize = file.fileSize;
+
+    const ab = new ArrayBuffer(fileSize);
+    var pulling = false;
+    var position = 0;
+
     const byteSource = file.byteSource;
     const rs = byteSource.stream;
 
-    var pulling = false;
-
-    const ab = new ArrayBuffer(fileSize);
-    var position = 0;
-
     function pull() {
       for (;;) {
-        if (position >= fileSize) {
+        // Completion check.
+        if (position >= fileSize || rs.state === 'closed') {
           resolve(new Uint8Array(ab, 0, position));
           return;
         }
 
-        if (rs.state === 'closed') {
-          resolve(new Uint8Array(ab, 0, position));
-          return;
-        } else if (rs.state === 'errored') {
+        // Error check.
+        if (rs.state === 'errored') {
           reject(new TypeError());
           return;
         }
 
-        if (!pulling) {
-          if (!byteSource.pullable) {
-            Promise.race(rs.closed, byteSource.watch()).then(pull, pull);
-            return;
-          }
+        var hasProgress = false;
 
+        if (!pulling && byteSource.pullable) {
           byteSource.pull(new Uint8Array(ab, position, fileSize - position));
           pulling = true;
+
+          hasProgress = true;
         }
 
-        if (rs.state === 'waiting') {
-          rs.ready.then(pump);
-          return;
+        if (rs.state === 'readable') {
+          const writtenRegion = rs.read();
+          // Assert: pulling
+          // Assert: writtenRegion.buffer === ab
+          // Assert: writtenRegion.byteOffset === position
+          position += writtenRegion.byteLength;
+          pulling = false;
+
+          hasProgress = true;
         }
 
-        var writtenRegion = rs.read();
-        // Assert: pulling
-        // Assert: writtenRegion.buffer === ab
-        // Assert: writtenRegion.byteOffset === position
-        position += writtenRegion.byteLength;
-        pulling = false;
+        if (hasProgress) {
+          continue;
+        }
+
+        var promisesToRace = [];
+
+        if (!byteSource.pullable) {
+          promisesToRace.push(byteSource.watch());
+        }
+
+        if (rs.state === 'readable') {
+          promisesToRace.push(rs.closed);
+        } else {
+          promisesToRace.push(rs.ready);
+        }
+
+        Promise.race(promisesToRace).then(pull, pull);
+        return;
       }
     };
 
