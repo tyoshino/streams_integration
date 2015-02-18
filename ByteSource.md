@@ -170,6 +170,101 @@ function processFile(file, chunkSize) {
 });
 ```
 
+### _n_ MiB at a time, reusing ArrayBuffers in a pool
+
+```es6
+function processFileUsingBufferPool(file, processor, bufferPool) {
+  return new Promise((resolve, reject) => {
+    const byteSource = file.byteSource;
+
+    var activeProcesses = [];
+
+    function loop() {
+      const rs = byteSource.stream;
+    
+      for (;;) {
+        // Error check.
+        if (rs.state === 'errored') {
+          reject(new TypeError());
+          return;
+        }
+        if (processor.state === 'closing' || processor.state === 'closed' || processor.state === 'errored') {
+          reject(new TypeError());
+          return;
+        }
+
+        // Completion check.
+        if (rs.state === 'closed' && activeProcesses.length === 0) {
+          resolve();
+          return;
+        }
+
+        var hasProgress = false;
+
+        if (bufferPool.length > 0 && byteSource.pullable) {
+          const buffer = bufferPool.shift();
+          byteSource.pull(new Uint8Array(buffer));
+
+          hasProgress = true;
+          // Keep going.
+        }
+
+        if (rs.state === 'readable' && processor.state === 'writable') {
+          const writtenRegion = rs.read();
+          const processPromise = processor.write(writtenRegion);
+          activeProcesses.push({
+              promise: processPromise.then(() => {
+                const process = activeProcesses.shift();
+                bufferPool.push(process.buffer);
+              }),
+              buffer: writtenRegion.buffer
+          });
+
+          hasProgress = true;
+        }
+
+        if (hasProgress) {
+          continue;
+        }
+
+        var promisesToRace = [];
+
+        if (!byteSource.pullable) {
+          promisesToRace.push(byteSource.watch());
+        }
+
+        if (rs.state === 'readable') {
+          promisesToRace.push(rs.closed);
+        } else if (rs.state === 'waiting') {
+          promisesToRace.push(rs.ready);
+        }
+
+        if (processor.state === 'writable') {
+          promisesToRace.push(processor.closed);
+        } else if (processor.state === 'waiting') {
+          promisesToRace.push(processor.ready);
+        }
+
+        if (activeProcesses.length > 0) {
+          const oldestProcess = activeProcesses[0];
+          promisesToRace.push(oldestProcess.promise);
+        }
+
+        Promise.race(promisesToRace).then(loop, loop);
+      }
+    }
+
+    loop();
+  }
+});
+
+var bufferPool = [];
+for (var i = 0; i < 2; ++i) {
+  bufferPool.push(new ArrayBuffer(1024 * 1024));
+}
+
+var p = processFileUsingBufferPool(file, processor, bufferPool);
+```
 
 # Strategy
 
