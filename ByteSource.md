@@ -170,11 +170,16 @@ function processFile(file, chunkSize) {
 });
 ```
 
-### _n_ MiB at a time, reusing ArrayBuffers in a pool
+### Process _file_ with _processor_ reusing _numBuffers_ `ArrayBuffer`s (_bufferSize_ byte long each) in _bufferPool_
 
 ```es6
-function processFileUsingBufferPool(file, processor, bufferPool) {
+function processFileUsingBufferPool(file, processor, numBuffers, bufferSize) {
   return new Promise((resolve, reject) => {
+    var bufferPool = [];
+    for (var i = 0; i < numBuffers; ++i) {
+      bufferPool.push(new ArrayBuffer(bufferSize));
+    }
+
     const byteSource = file.byteSource;
 
     var activeProcesses = [];
@@ -257,13 +262,6 @@ function processFileUsingBufferPool(file, processor, bufferPool) {
     loop();
   }
 });
-
-var bufferPool = [];
-for (var i = 0; i < 2; ++i) {
-  bufferPool.push(new ArrayBuffer(1024 * 1024));
-}
-
-var p = processFileUsingBufferPool(file, processor, bufferPool);
 ```
 
 # Strategy
