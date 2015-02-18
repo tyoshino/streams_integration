@@ -55,5 +55,68 @@ class ByteSource {
 }
 ```
 
+## How to use
+
+In response to [Domenic's suggestion](https://github.com/whatwg/streams/issues/253#issuecomment-74765051) to write how each proposal works for known use cases.
+
+### Read _n_ MiB file into a single ArrayBuffer.
+
+```es6
+function readAsSingleArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const fileSize = file.fileSize;
+    const byteSource = file.byteSource;
+
+    var pulling = false;
+
+    const ab = new ArrayBuffer(fileSize);
+    var position = 0;
+
+    function pull() {
+      for (;;) {
+        if (position >= fileSize) {
+          resolve(new Uint8Array(ab, 0, position));
+          return;
+        }
+
+        const rs = byteSource.stream;
+
+        if (rs.state === 'closed') {
+          resolve(new Uint8Array(ab, 0, position));
+          return;
+        } else if (rs.state === 'errored') {
+          reject(new TypeError());
+          return;
+        }
+
+        if (!pulling) {
+          if (!byteSource.pullable) {
+            Promise.race(rs.closed, byteSource.watch()).then(pull);
+            return;
+          }
+
+          byteSource.pull(new Uint8Array(ab, position, fileSize - position));
+          pulling = true;
+        }
+
+        if (rs.state === 'waiting') {
+          rs.ready.then(pump);
+          return;
+        }
+
+        var writtenRegion = rs.read();
+        // Assert: pulling
+        // Assert: writtenRegion.buffer === ab
+        // Assert: writtenRegion.byteOffset === position
+        position += writtenRegion.byteLength;
+        pulling = false;
+      }
+    };
+
+    pull();
+  }
+});
+```
+
 # Strategy
 
