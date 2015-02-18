@@ -129,12 +129,11 @@ function processFileUsingBufferPool(file, processor, numBuffers, bufferSize) {
     }
 
     const byteSource = file.byteSource;
+    const rs = byteSource.stream;
 
     var activeProcesses = [];
 
     function loop() {
-      const rs = byteSource.stream;
-    
       for (;;) {
         // Error check.
         if (rs.state === 'errored') {
