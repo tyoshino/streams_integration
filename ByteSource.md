@@ -118,5 +118,58 @@ function readAsSingleArrayBuffer(file) {
 });
 ```
 
+### _n_ MiB at a time, reusing the same ArrayBuffer
+
+```es6
+function processFile(file, chunkSize) {
+  return new Promise((resolve, reject) => {
+    const byteSource = file.byteSource;
+
+    var pulling = false;
+
+    const ab = new ArrayBuffer(chunkSize);
+
+    function pull() {
+      for (;;) {
+        const rs = byteSource.stream;
+
+        if (rs.state === 'closed') {
+          resolve();
+          return;
+        } else if (rs.state === 'errored') {
+          reject(new TypeError());
+          return;
+        }
+
+        if (!pulling) {
+          if (!byteSource.pullable) {
+            Promise.race(rs.closed, byteSource.watch()).then(pull);
+            return;
+          }
+
+          byteSource.pull(new Uint8Array(ab));
+          pulling = true;
+        }
+
+        if (rs.state === 'waiting') {
+          rs.ready.then(pump);
+          return;
+        }
+
+        var writtenRegion = rs.read();
+        // Assert: pulling
+        // Assert: writtenRegion.buffer === ab
+        // Assert: writtenRegion.byteOffset === position
+        processChunk(writtenRegion);
+        pulling = false;
+      }
+    };
+
+    pull();
+  }
+});
+```
+
+
 # Strategy
 
