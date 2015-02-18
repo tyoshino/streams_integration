@@ -90,7 +90,7 @@ function readAsSingleArrayBuffer(file) {
 
         if (!pulling) {
           if (!byteSource.pullable) {
-            Promise.race(rs.closed, byteSource.watch()).then(pull);
+            Promise.race(rs.closed, byteSource.watch()).then(pull, pull);
             return;
           }
 
