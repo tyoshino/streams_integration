@@ -66,6 +66,7 @@ function readAsSingleArrayBuffer(file) {
   return new Promise((resolve, reject) => {
     const fileSize = file.fileSize;
     const byteSource = file.byteSource;
+    const rs = byteSource.stream;
 
     var pulling = false;
 
@@ -78,8 +79,6 @@ function readAsSingleArrayBuffer(file) {
           resolve(new Uint8Array(ab, 0, position));
           return;
         }
-
-        const rs = byteSource.stream;
 
         if (rs.state === 'closed') {
           resolve(new Uint8Array(ab, 0, position));
