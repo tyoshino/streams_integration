@@ -193,7 +193,9 @@ function processFileUsingBufferPool(file, processor, numBuffers, bufferSize) {
           reject(new TypeError());
           return;
         }
-        if (processor.state === 'closing' || processor.state === 'closed' || processor.state === 'errored') {
+        if (processor.state === 'closing' ||
+            processor.state === 'closed' ||
+            processor.state === 'errored') {
           reject(new TypeError());
           return;
         }
