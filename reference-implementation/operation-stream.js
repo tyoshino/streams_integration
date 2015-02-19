@@ -9,12 +9,11 @@ class OperationStatus {
     this._result = undefined;
     this._readyPromise = new Promise((resolve, reject) => {
       this._resolveReadyPromsie = resolve;
-      this._rejectReadyPromsie = reject;
     });
   }
 
   _onCompletion(v) {
-    this._state = 'done';
+    this._state = 'completed';
     this._result = v;
     this._resolveReadyPromise();
   }
@@ -48,6 +47,7 @@ class Operation {
   get argument() {
     return this._argument;
   }
+
   complete(result) {
     this._status._onCompletion(result);
   }
@@ -62,21 +62,21 @@ class Exchange {
     this._queueSize = 0;
 
     this._strategy = strategy;
-
     this._window = 0;
 
     this._writableState = undefined;
     this._initWritableReadyPromise();
+
     this._updateWritableState();
+
     this._cancelOperation = undefined;
     this._cancelledPromise = new Promise((resolve, reject) => {
       this._resolveCancelledPromise = resolve;
     });
 
     this._readableState = 'waiting';
-    this._readableReadyPromise = new Promise((resolve, reject) => {
-      this._resolveReadableReadyPromise = resolve;
-    });
+    this._initReadableReadyPromise();
+
     this._abortOperation = undefined;
     this._abortedPromise = new Promise((resolve, reject) => {
       this._resolveAbortedPromise = resolve;
@@ -95,14 +95,6 @@ class Exchange {
     });
   }
 
-  _errorAndClearQueue(reason) {
-    for (var i = 0; i < this._queue.length; ++i) {
-      var entry = this._queue[i];
-      entry.error(reason);
-    }
-    this._queue = [];
-  }
-
   // Writable side interfaces
 
   get writableState() {
@@ -111,6 +103,7 @@ class Exchange {
   get writableReady() {
     return this._writableReadyPromise;
   }
+
   get cancelOperation() {
     return this._cancelOperation;
   }
@@ -120,24 +113,18 @@ class Exchange {
 
   _checkWritableState() {
     if (this._writableState === 'closed') {
-      return Promise.reject(new TypeError('you have already closed'));
+      return Promise.reject(new TypeError('already closed'));
     }
     if (this._writableState === 'aborted') {
-      return Promise.reject(new TypeError('you have already aborted'));
+      return Promise.reject(new TypeError('already aborted'));
     }
     if (this._writableState === 'cancelled') {
-      return Promise.reject(new TypeError('has been cancelled'));
+      return Promise.reject(new TypeError('already cancelled'));
     }
     return undefined;
   }
 
   _updateWritableState() {
-    if (this._writableState === 'closed' ||
-        this._writableState === 'aborted' ||
-        this._writableState === 'cancelled') {
-      return;
-    }
-
     const shouldApplyBackpressure = this._strategy.shouldApplyBackpressure(this._queueSize);
     if (shouldApplyBackpressure && this._writableState === 'writable') {
       this._writableState = 'waiting';
@@ -154,18 +141,18 @@ class Exchange {
       return checkResult;
     }
 
-    if (this._queue.length === 0) {
-      this._readableState = 'readable';
-      this._resolveReadableReadyPromise();
-    }
-
     const size = this._strategy.size(argument);
 
-    var status = new OperationStatus();
-    this._queue.push({value: new Operation('data', status, argument), size});
+    const status = new OperationStatus();
+    this._queue.push({value: new Operation('data', argument, status), size});
     this._queueSize += size;
 
     this._updateWritableState();
+
+    if (this._readableStream === 'waiting') {
+      this._readableState = 'readable';
+      this._resolveReadableReadyPromise();
+    }
 
     return status;
   }
@@ -176,29 +163,37 @@ class Exchange {
       return checkResult;
     }
 
-    this._writableState = 'closed';
-
-    if (this._queue.length === 0) {
-      this._readableState = 'readable';
-      this._resolveReadableReadyPromise();
-    }
-
     this._strategy = undefined;
 
     const status = new OperationStatus();
     this._queue.push({value: new Operation('close', undefined, status), size: 0});
+
+    this._writableState = 'closed';
+
+    if (this._readableStream === 'waiting') {
+      this._readableState = 'readable';
+      this._resolveReadableReadyPromise();
+    }
+
+
     return status;
   }
 
   abort(reason) {
     if (this._writableState === 'aborted') {
-      return Promise.reject(new TypeError('you have already aborted'));
+      return Promise.reject(new TypeError('already aborted'));
     }
     if (this._writableState === 'cancelled') {
-      return Promise.reject(new TypeError('has been cancelled'))
+      return Promise.reject(new TypeError('already cancelled'))
     }
 
-    this._errorAndClearQueue(new TypeError('aborted'));
+    for (var i = this._queue.length - 1; i >= 0; --i) {
+      const op = this._queue[i].value;
+      op.error(new TypeError('aborted'));
+    }
+    this._queue = [];
+    this._strategy = undefined;
+
     if (this._writableState === 'waiting') {
       this._resolveWritableReadyPromise();
     }
@@ -206,33 +201,25 @@ class Exchange {
 
     const status = new OperationStatus();
     this._abortOperation = new Operation('abort', reason, status);
+    this._resolveAbortedPromise();
+
     if (this._readableState === 'waiting') {
       this._resolveReadableReadyPromise();
     }
-    this._resolveAbortedPromise();
     this._readableState = 'aborted';
-
-    this._strategy = undefined;
 
     return status;
   }
 
   // Readable side interfaces.
 
-  get window() {
-    return this._window;
-  }
-  set window(v) {
-    this._strategy.onWindowUpdate(v);
-    this._window = v;
-    this._updateWritableState();
-  }
   get readableState() {
     return this._readableState;
   }
   get readableReady() {
     return this._readableReadyPromise;
   }
+
   get abortOperation() {
     return this._abortOperation;
   }
@@ -240,15 +227,31 @@ class Exchange {
     return this._abortedPromise;
   }
 
+  get window() {
+    return this._window;
+  }
+  set window(v) {
+    this._window = v;
+
+    if (this._writableState === 'closed' ||
+        this._writableState === 'aborted' ||
+        this._writableState === 'cancelled') {
+      return;
+    }
+
+    this._strategy.onWindowUpdate(v);
+    this._updateWritableState();
+  }
+
   _checkReadableState() {
+    if (this._readableState === 'drained') {
+      throw new TypeError('already drained');
+    }
     if (this._readableState === 'cancelled') {
-      throw new TypeError('you have already cancelled');
+      throw new TypeError('already cancelled');
     }
     if (this._readableState === 'aborted') {
-      throw new TypeError('has been aborted');
-    }
-    if (this._readableState === 'drained') {
-      throw new TypeError('you have already drained');
+      throw new TypeError('already aborted');
     }
   }
 
@@ -279,15 +282,21 @@ class Exchange {
   cancel(reason) {
     this._checkReadableState();
 
+    for (var i = 0; i < this._queue.length; ++i) {
+      const op = this._queue[i].value;
+      op.error(new TypeError('cancelled'));
+    }
+    this._queue = [];
+    this._strategy = undefined;
+
     const status = new OperationStatus();
     this._cancelOperation = new Operation('cancel', reason, status);
     this._resolveCancelledPromise();
+
     if (this._writableState === 'waiting') {
       this._resolveWritableReadyPromise();
     }
     this._writableState = 'cancelled';
-
-    this._errorAndClearQueue(new TypeError('cancelled'));
 
     if (this._readableState === 'waiting') {
       this._resolveReadableReadyPromise();
@@ -311,6 +320,7 @@ class WritableStream {
   get ready() {
     return this._exchange.writableReady;
   }
+
   get cancelOperation() {
     return this._exchange.cancelOperation;
   }
@@ -340,12 +350,14 @@ class ReadableStream {
   get ready() {
     return this._exchange.readableReady;
   }
+
   get abortOperation() {
     return this._exchange.abortOperation;
   }
   get aborted() {
     return this._exchange.aborted;
   }
+
   get window() {
     return this._exchange.window;
   }
