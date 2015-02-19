@@ -1,6 +1,6 @@
 export function createOperationStream(strategy) {
-  var exchange = new Exchange(strategy);
-  return {writable: new WritableStream(exchange), readable: new ReadableStream(exchange)};
+  var stream = new Stream(strategy);
+  return {writable: new WritableStream(stream), readable: new ReadableStream(stream)};
 }
 
 class OperationStatus {
@@ -56,7 +56,7 @@ class Operation {
   }
 }
 
-class Exchange {
+class Stream {
   constructor(strategy) {
     this._queue = [];
     this._queueSize = 0;
@@ -310,65 +310,65 @@ class Exchange {
 // Wrappers to hide the interfaces of the other side.
 
 class WritableStream {
-  constructor(exchange) {
-    this._exchange = exchange;
+  constructor(stream) {
+    this._stream = stream;
   }
 
   get state() {
-    return this._exchange.writableState;
+    return this._stream.writableState;
   }
   get ready() {
-    return this._exchange.writableReady;
+    return this._stream.writableReady;
   }
 
   get cancelOperation() {
-    return this._exchange.cancelOperation;
+    return this._stream.cancelOperation;
   }
   get cancelled() {
-    return this._exchange.cancelled;
+    return this._stream.cancelled;
   }
 
   write(value) {
-    return this._exchange.write(value);
+    return this._stream.write(value);
   }
   close() {
-    return this._exchange.close();
+    return this._stream.close();
   }
   abort(reason) {
-    return this._exchange.abort(reason);
+    return this._stream.abort(reason);
   }
 }
 
 class ReadableStream {
-  constructor(exchange) {
-    this._exchange = exchange;
+  constructor(stream) {
+    this._stream = stream;
   }
 
   get state() {
-    return this._exchange.readableState;
+    return this._stream.readableState;
   }
   get ready() {
-    return this._exchange.readableReady;
+    return this._stream.readableReady;
   }
 
   get abortOperation() {
-    return this._exchange.abortOperation;
+    return this._stream.abortOperation;
   }
   get aborted() {
-    return this._exchange.aborted;
+    return this._stream.aborted;
   }
 
   get window() {
-    return this._exchange.window;
+    return this._stream.window;
   }
   set window(v) {
-    this._exchange.window = v;
+    this._stream.window = v;
   }
 
   read() {
-    return this._exchange.read();
+    return this._stream.read();
   }
   cancel(reason) {
-    return this._exchange.cancel(reason);
+    return this._stream.cancel(reason);
   }
 }
