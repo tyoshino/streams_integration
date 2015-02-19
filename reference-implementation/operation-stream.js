@@ -3,126 +3,65 @@ export function createOperationStream() {
   return {writable: new WritableStream(exchange), readable: new ReadableStream(exchange)};
 }
 
-class WritableStream {
-  constructor(exchange) {
-    this._exchange = exchange;
-  }
-
-  get closed() {
-    return this._exchange.writableClosed;
-  }
-
-  abort(reason) {
-    return this._exchange.abort(reason);
-  }
-
-  close() {
-    return this._exchange.close();
-  }
-
-  write(value) {
-    return this._exchange.write(value);
-  }
-}
-
-class ReadableStream {
-  constructor(exchange) {
-    this._exchange = exchange;
-  }
-
-  get closed() {
-    return this._exchange.readableClosed;
-  }
-
-  cancel(reason) {
-    return this._exchange.cancel(reason);
-  }
-
-  read() {
-    return this._exchange.read();
-  }
-}
-
 class Exchange {
   constructor() {
     this._writeQueue = [];
     this._readQueue = [];
 
-    this._writableClosed = new Promise((resolve, reject) => {
-      this._resolveWritableClosed = resolve;
-      this._rejectWritableClosed = reject;
+    this._abortedPromise = new Promise((resolve, reject) => {
+      this._resolveAbortedPromise = resolve;
+      this._rejectAbortedPromise = reject;
     });
-    this._readableClosed = new Promise((resolve, reject) => {
-      this._resolveReadableClosed = resolve;
-      this._rejectReadableClosed = reject;
+    this._cancelledPromise = new Promise((resolve, reject) => {
+      this._resolveCancelledPromise = resolve;
+      this._rejectCancelledPromise = reject;
     });
 
     this._state = 'normal';
   }
 
-  get writableClosed() {
-    return this._writableClosed;
+  get aborted() {
+    return this._abortedPromise;
   }
 
-  get readableClosed() {
-    return this._readableClosed;
+  get cancelled() {
+    return this._cancelledPromise;
   }
 
-  abort(reason) {
+  // Writable side interfaces
+
+  write(value) {
+    if (this._state === 'closed') {
+      return Promise.reject(new TypeError('already closed'));
+    }
     if (this._state === 'aborted') {
       return Promise.reject(new TypeError('already aborted'));
     }
-
     if (this._state === 'cancelled') {
-      return Promise.reject(this._reason);
+      return Promise.reject(new TypeError('cancelled'));
     }
 
-    this._state = 'aborted';
-    this._reason = reason;
-
-    this._rejectAndClearWriteQueue(new TypeError('aborted'));
-    this._rejectAndClearReadQueues(reason);
-
-    this._resolveWritableClosed();
-
     return new Promise((resolve, reject) => {
-      this._rejectReadableClosed({reason, resolve, reject});
+      const writeEntry = {type: 'data', value, resolve, reject};
+      if (this._readQueue.length > 0) {
+        // Assert: this._writeQueue.length === 0
+        const readEntry = this._readQueue.shift();
+        readEntry.resolve(writeEntry);
+      } else {
+        this._writeQueue.push(writeEntry);
+      }
     });
-  }
-
-  cancel(reason) {
-    if (this._state === 'cancelled') {
-      return Promise.reject(new TypeError('already cancelled'));
-    }
-
-    if (this._state === 'aborted') {
-      return Promise.reject(this._reason);
-    }
-
-    this._state = 'cancelled';
-    this._reason = reason;
-
-    this._rejectAndClearWriteQueue(reason);
-    this._rejectAndClearReadQueues(new TypeError('cancelled'));
-
-    this._resolveReadableClosed();
-
-    return new Promise((resolve, reject) => {
-      this._rejectWritableClosed({reason, resolve, reject});
-    }
   }
 
   close() {
     if (this._state === 'closed') {
       return Promise.reject(new TypeError('already closed'));
     }
-
     if (this._state === 'aborted') {
       return Promise.reject(new TypeError('already aborted'));
     }
-
     if (this._state === 'cancelled') {
-      return Promise.reject(this._reason);
+      return Promise.reject(new TypeError('cancelled'));
     }
 
     this._state = 'closed';
@@ -138,47 +77,61 @@ class Exchange {
     });
   }
 
-  read() {
-    if (this._state === 'cancelled') {
-      return Promise.reject(new TypeError('cancelled'));
-    }
-
-    if (this._state === 'aborted') {
-      return Promise.reject(this._reason);
-    }
-
-    return new Promise((resolve, reject) => {
-      if (this._writeQueue.length > 0) {
-        const writeEntry = this._writeQueue.shift();
-        resolve(writeEntry);
-      } else {
-        this._readQueue.push({resolve, reject});
-      }
-    });
-  }
-
-  write(value) {
-    if (this._state === 'closed') {
-      return Promise.reject(new TypeError('already closed'));
-    }
-
+  abort(reason) {
     if (this._state === 'aborted') {
       return Promise.reject(new TypeError('already aborted'));
     }
-
     if (this._state === 'cancelled') {
-      return Promise.reject(this._reason);
+      return Promise.reject(new TypeError('cancelled'))
     }
 
+    this._state = 'aborted';
+
+    this._rejectAndClearWriteQueue(new TypeError('aborted'));
+    this._rejectAndClearReadQueues(new TypeError('aborted'));
+
     return new Promise((resolve, reject) => {
-      const writeEntry = {type: 'data', value: value, resolve: resolve, reject: reject};
-      if (this._readQueue.length > 0) {
-        const readEntry = this._readQueue.shift();
-        readEntry.resolve(writeEntry);
-      } else {
-        this._writeQueue.push(writeEntry);
-      }
+      this._resolveAbortedPromise({reason, resolve, reject});
     });
+  }
+
+  // Readable side interfaces.
+
+  read() {
+    if (this._state === 'cancelled') {
+      return Promise.reject(new TypeError('already cancelled'));
+    }
+    if (this._state === 'aborted') {
+      return Promise.reject('aborted');
+    }
+
+    if (this._writeQueue.length > 0) {
+      // Assert: this._readQueue.length === 0
+      const writeEntry = this._writeQueue.shift();
+      return Promise.resolve(writeEntry);
+    } else {
+      return new Promise((resolve, reject) => {
+        this._readQueue.push({resolve, reject});
+      });
+    }
+  }
+
+  cancel(reason) {
+    if (this._state === 'cancelled') {
+      return Promise.reject(new TypeError('already cancelled'));
+    }
+    if (this._state === 'aborted') {
+      return Promise.reject(new TypeError('aborted'));
+    }
+
+    this._state = 'cancelled';
+
+    this._rejectAndClearWriteQueue(new TypeError('cancelled'));
+    this._rejectAndClearReadQueues(new TypeError('cancelled'));
+
+    return new Promise((resolve, reject) => {
+      this._rejectCancelledPromise({reason, resolve, reject});
+    }
   }
 
   _rejectAndClearReadQueue(e) {
@@ -195,5 +148,43 @@ class Exchange {
       entry.reject(e);
     }
     this._writeQueue = [];
+  }
+}
+
+// Wrappers to hide the interfaces of the other side.
+
+class WritableStream {
+  constructor(exchange) {
+    this._exchange = exchange;
+  }
+
+  get cancelled() {
+    return this._exchange.cancelled;
+  }
+
+  write(value) {
+    return this._exchange.write(value);
+  }
+  close() {
+    return this._exchange.close();
+  }
+  abort(reason) {
+    return this._exchange.abort(reason);
+  }
+}
+
+class ReadableStream {
+  constructor(exchange) {
+    this._exchange = exchange;
+  }
+
+  get aborted() {
+    return this._exchange.aborted;
+  }
+  read() {
+    return this._exchange.read();
+  }
+  cancel(reason) {
+    return this._exchange.cancel(reason);
   }
 }
