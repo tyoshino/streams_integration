@@ -61,11 +61,13 @@ class Exchange {
     this._queue = [];
     this._queueSize = 0;
 
+    this._strategy = strategy;
+
     this._window = 0;
 
     this._writableState = undefined;
-    this._updateWritableState();
     this._initWritableReadyPromise();
+    this._updateWritableState();
     this._cancelOperation = undefined;
     this._cancelledPromise = new Promise((resolve, reject) => {
       this._resolveCancelledPromise = resolve;
@@ -75,6 +77,7 @@ class Exchange {
     this._readableReadyPromise = new Promise((resolve, reject) => {
       this._resolveReadableReadyPromise = resolve;
     });
+    this._abortOperation = undefined;
     this._abortedPromise = new Promise((resolve, reject) => {
       this._resolveAbortedPromise = resolve;
     });
@@ -83,6 +86,12 @@ class Exchange {
   _initWritableReadyPromise() {
     this._writableReadyPromise = new Promise((resolve, reject) => {
       this._resolveWritableReadyPromise = resolve;
+    });
+  }
+
+  _initReadableReadyPromise() {
+    this._readableReadyPromise = new Promise((resolve, reject) => {
+      this._resolveReadableReadyPromise = resolve;
     });
   }
 
@@ -109,15 +118,15 @@ class Exchange {
     return this._cancelledPromise;
   }
 
-  _checkWritablePrecondition() {
+  _checkWritableState() {
     if (this._writableState === 'closed') {
-      return Promise.reject(new TypeError('already closed'));
+      return Promise.reject(new TypeError('you have already closed'));
     }
     if (this._writableState === 'aborted') {
-      return Promise.reject(new TypeError('already aborted'));
+      return Promise.reject(new TypeError('you have already aborted'));
     }
     if (this._writableState === 'cancelled') {
-      return Promise.reject(new TypeError('cancelled'));
+      return Promise.reject(new TypeError('has been cancelled'));
     }
     return undefined;
   }
@@ -140,7 +149,7 @@ class Exchange {
   }
 
   write(argument) {
-    const checkResult = this._checkWritePrecondition();
+    const checkResult = this._checkWritableState();
     if (checkResult !== undefined) {
       return checkResult;
     }
@@ -167,8 +176,6 @@ class Exchange {
       return checkResult;
     }
 
-    this._state = 'closed';
-
     this._writableState = 'closed';
 
     if (this._queue.length === 0) {
@@ -184,28 +191,29 @@ class Exchange {
   }
 
   abort(reason) {
-    if (this._state === 'aborted') {
-      return Promise.reject(new TypeError('already aborted'));
+    if (this._writableState === 'aborted') {
+      return Promise.reject(new TypeError('you have already aborted'));
     }
-    if (this._state === 'cancelled') {
-      return Promise.reject(new TypeError('cancelled'))
-    }
-
-    this._state = 'aborted';
-
-    if (this._queue.length === 0) {
-      this._readableState = 'readable';
-      this._resolveReadableReadyPromise();
+    if (this._writableState === 'cancelled') {
+      return Promise.reject(new TypeError('has been cancelled'))
     }
 
     this._errorAndClearQueue(new TypeError('aborted'));
+    if (this._writableState === 'waiting') {
+      this._resolveWritableReadyPromise();
+    }
+    this._writableState = 'aborted';
 
+    const status = new OperationStatus();
+    this._abortOperation = new Operation('abort', reason, status);
+    if (this._readableState === 'waiting') {
+      this._resolveReadableReadyPromise();
+    }
     this._resolveAbortedPromise();
+    this._readableState = 'aborted';
 
     this._strategy = undefined;
 
-    const status = new OperationStatus();
-    this._queue.push({value: new Operation('abort', reason, status), size: 0});
     return status;
   }
 
@@ -225,25 +233,27 @@ class Exchange {
   get readableReady() {
     return this._readableReadyPromise;
   }
+  get abortOperation() {
+    return this._abortOperation;
+  }
   get aborted() {
     return this._abortedPromise;
   }
 
-  _checkReadPrecondition() {
-    if (this._state === 'cancelled') {
-      return Promise.reject(new TypeError('already cancelled'));
+  _checkReadableState() {
+    if (this._readableState === 'cancelled') {
+      throw new TypeError('you have already cancelled');
     }
-    if (this._state === 'aborted') {
-      return Promise.reject('aborted');
+    if (this._readableState === 'aborted') {
+      throw new TypeError('has been aborted');
     }
-    return undefined;
+    if (this._readableState === 'drained') {
+      throw new TypeError('you have already drained');
+    }
   }
 
   read() {
-    const checkResult = this._checkReadPrecondition();
-    if (checkResult !== undefined) {
-      return checkResult;
-    }
+    this._checkReadableState();
 
     if (this._queue.length === 0) {
       throw new TypeError('not readable');
@@ -251,23 +261,39 @@ class Exchange {
 
     const entry = this._queue.shift();
     this._queueSize -= entry.size;
+
     this._updateWritableState();
+
+    if (this._queue.length === 0) {
+      if (entry.type === 'close') {
+        this._readableState = 'drained';
+      } else {
+        this._readableState = 'waiting';
+        this._initReadableReadyPromise();
+      }
+    }
+
     return entry.value;
   }
 
   cancel(reason) {
-    const checkResult = this._checkReadPrecondition();
-    if (checkResult !== undefined) {
-      return checkResult;
-    }
-
-    this._state = 'cancelled';
-
-    this._errorAndClearQueue(new TypeError('cancelled'));
+    this._checkReadableState();
 
     const status = new OperationStatus();
     this._cancelOperation = new Operation('cancel', reason, status);
     this._resolveCancelledPromise();
+    if (this._writableState === 'waiting') {
+      this._resolveWritableReadyPromise();
+    }
+    this._writableState = 'cancelled';
+
+    this._errorAndClearQueue(new TypeError('cancelled'));
+
+    if (this._readableState === 'waiting') {
+      this._resolveReadableReadyPromise();
+    }
+    this._readableState = 'cancelled';
+
     return status;
   }
 }
@@ -313,6 +339,9 @@ class ReadableStream {
   }
   get ready() {
     return this._exchange.readableReady;
+  }
+  get abortOperation() {
+    return this._exchange.abortOperation;
   }
   get aborted() {
     return this._exchange.aborted;
