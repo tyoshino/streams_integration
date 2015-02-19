@@ -1,1 +1,1 @@
-See https://github.com/tyoshino/streams_integration/blob/master/reference-implementation/operation-stream.js
+Moved to https://github.com/whatwg/streams/tree/operationStream
