@@ -29,7 +29,8 @@ class WritableOperationStream {
 
   // Returns the space available for write.
   get space()
-  // Returns a promise which gets fulfilled when space() becomes different value than one at the last waitSpaceChange()
+  // Returns a promise which gets fulfilled when space() becomes different value than one at the last
+  waitSpaceChange()
   // call or this instance enters non "writable" state.
 }
 
@@ -46,5 +47,25 @@ class ExclusiveOperationStreamWriter {
   get state()
   get writable()
   get errored()
+}
+```
+
+```es6
+class ReadableOperationStream {
+  // - "locked" -> available
+  // - available -> "locked"
+  //   - normal -> "aborted", "cancelled", "errored"
+  //     - "waiting" -> "readable"
+  //     - "readable" -> "waiting", "drained"
+  //   - "drained"
+  //   - "aborted"
+  //   - "cancelled"
+  //   - "errored"
+  get state()
+  // Returns a promise which gets fulfilled when this instance enters "readable" state.
+  get readable()
+  // Returns a promise which gets fulfilled when this instance enters any of "aborted" and "errored" state.
+  get errored()
+  
 }
 ```
