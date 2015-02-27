@@ -3,6 +3,11 @@ Meged into https://github.com/whatwg/streams/pull/287
 ### Revise note
 ```
 class WritableOperationStream {
+  // List of states in the form of:
+  //   X -> A, B, C, ...
+  // X is state name or a name of a group of states.
+  // A, B, C, ... are the states X may transit to.
+  //
   // - "locked" -> available
   // - available -> "locked"
   //   - (write()/close() are allowed) -> "closed", "aborted", "cancelled", "errored"
