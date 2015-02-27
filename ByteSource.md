@@ -1,7 +1,8 @@
 Meged into https://github.com/whatwg/streams/pull/287
 
 ### Revise note
-```
+
+```es6
 class WritableOperationStream {
   // List of states in the form of:
   //   X -> A, B, C, ...
@@ -48,5 +49,4 @@ class ExclusiveOperationStreamWriter {
   get writable()
   get errored()
 }
-
 ```
