@@ -12,8 +12,8 @@ class WritableOperationStream {
   // - "locked" -> available
   // - available -> "locked"
   //   - (write()/close() are allowed) -> "closed", "aborted", "cancelled", "errored"
-  //     - "writable" (backpressure applied) -> "waiting"
   //     - "waiting" (backpressure not applied) -> "writable"
+  //     - "writable" (backpressure applied) -> "waiting"
   //   - "closed" -> "aborted", "cancelled", "errored"
   //   - "aborted"
   //   - "cancelled"
@@ -44,8 +44,8 @@ class ExclusiveOperationStreamWriter {
   // - "locked" -> available
   // - available -> "locked"
   //   - (write()/close() are allowed) -> "closed", "aborted", "cancelled", "errored"
-  //     - "writable" (backpressure applied) -> "waiting"
   //     - "waiting" (backpressure not applied) -> "writable"
+  //     - "writable" (backpressure applied) -> "waiting"
   //   - "closed -> "aborted", "cancelled", "errored"
   //   - "aborted"
   //   - "cancelled"
