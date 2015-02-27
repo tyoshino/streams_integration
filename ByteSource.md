@@ -19,7 +19,7 @@ class WritableOperationStream {
   //   - "cancelled"
   //   - "errored"
   get state()
-  // Returns a promise which gets fulfilled when this instance enters non "locked" state.
+  // Returns a promise which gets fulfilled when this instance enters any of states in the available group.
   get released()
   // Returns a promise which gets fulfilled when this instance enters "writable" state.
   get writable()
