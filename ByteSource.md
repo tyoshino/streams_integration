@@ -32,6 +32,12 @@ class WritableOperationStream {
   // Returns a promise which gets fulfilled when space() becomes different value than one at the last
   waitSpaceChange()
   // call or this instance enters non "writable" state.
+
+  write(argument)
+  close()
+  abort(reason)
+
+  getWriter()
 }
 
 class ExclusiveOperationStreamWriter {
@@ -47,6 +53,17 @@ class ExclusiveOperationStreamWriter {
   get state()
   get writable()
   get errored()
+
+  get cancelOperation()
+
+  get space()
+  waitSpaceChange()
+
+  write(argument)
+  close()
+  abort(reason)
+
+  getWriter()
 }
 ```
 
@@ -66,6 +83,5 @@ class ReadableOperationStream {
   get readable()
   // Returns a promise which gets fulfilled when this instance enters any of "aborted" and "errored" state.
   get errored()
-  
 }
 ```
