@@ -1,7 +1,7 @@
 Meged into https://github.com/whatwg/streams/pull/287
 
 ### Revise note
-
+```
 class WritableOperationStream {
   // - "locked" -> available
   // - available -> "locked"
@@ -44,3 +44,4 @@ class ExclusiveOperationStreamWriter {
   get errored()
 }
 
+```
