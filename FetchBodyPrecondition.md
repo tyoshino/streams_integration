@@ -2,6 +2,38 @@ Copy of https://github.com/slightlyoff/ServiceWorker/issues/452#issuecomment-719
 
 In the following plans, `fetch()` is omitted since `fetch(req)` runs `new Request(req)`, and therefore it's sufficient to discuss only `new Request(req)`.
 
+## (X) Lock + `used flag`
+
+Request
+
+- a `Request` has a boolean `used flag` which is initially set to **false**
+- `req.bodyUsed` = `used flag`
+- `unavailable` = (`req.body` is locked) || (`used flag` is set)
+- The following operations fail when `unavailable` is **true**. Otherwise, they set `used flag` to **true**, acquire the lock of `req.body` and release it when done (`req.body` becomes `"closed"` when done).
+    - `req.arrayBuffer()`
+    - `req.blob()`
+    - `req.formData()`
+    - `req.json()`
+    - `req.text()`
+    - `new Request(req)`
+    - `cache.put(req, res)`
+- `req.clone()` fail when `unavailable` is set.
+
+Response
+
+- a `Response` has a boolean `used flag` which is initially set to **false**
+- `res.bodyUsed` = `used flag`
+- `unavailable` = (`res.body` is locked) || (`used flag` is set)
+- The following operations fail when `unavailable` is **true**. Otherwise, they set `used flag` to **true**, acquire the lock of `res.body` and release it when done.
+    - `res.arrayBuffer()`
+    - `res.blob()`
+    - `res.formData()`
+    - `res.json()`
+    - `res.text()`
+    - `e.respondWith(res)`
+    - `cache.put(req, res)`
+- `res.clone()` fail when `res.bodyUsed` is set.
+
 ## (A)'' Lock + `body passed flag`
 
 Request
