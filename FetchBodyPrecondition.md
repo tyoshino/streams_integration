@@ -32,7 +32,7 @@ Response
     - `res.text()`
     - `e.respondWith(res)`
     - `cache.put(req, res)`
-- `res.clone()` fail when `res.bodyUsed` is set.
+- `res.clone()` fail when `unavailable` is set.
 
 ## (A)'' Lock + `body passed flag`
 
